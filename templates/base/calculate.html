@@ -1,0 +1,475 @@
+<html>
+  <head>
+    <title>Elliptic Calculator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Bootstrap CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3"
+      crossorigin="anonymous"
+    />
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+
+    <!-- Bootstrap JS -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p"
+      crossorigin="anonymous"
+    ></script>
+
+    <!-- Google Font CDN -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP&family=Ubuntu&display=swap" rel="stylesheet">
+
+    <!-- Pyplot CDN -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script async src="/cdn-cgi/bm/cv/669835187/api.js"></script>
+    <style>
+      .points-div {
+        background-color: lightgrey;
+        border: 2px solid black;
+        overflow-y: scroll;
+        overflow-x: hidden;
+        max-height: 30vh;
+      }
+
+      #title{
+        font-family: 'Ubuntu', sans-serif;
+      }
+
+      * {
+        font-family: 'Noto Sans JP', sans-serif;
+      }
+    </style>
+
+    <!-- footer styles -->
+    <style>
+      @media only screen and (max-width: 991.5px) {
+        footer{
+          font-size: small
+        }
+      }
+      @media only screen and (max-width: 456px) {
+        footer{
+          font-size: 0.7em
+        }
+      }
+      @media only screen and (max-width: 380px) {
+        footer{
+          font-size: 0.6em
+        }
+      }
+
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      .wrapper {
+        min-height: 100%;
+
+        /* Equal to height of footer */
+        /* But also accounting for potential margin-bottom of last child */
+        margin-bottom: -230px;
+      }
+      .footer_css_tricks,
+      .push {
+        height: 260px;
+      }
+
+      hr {
+        border: 0;
+        height: 1px;
+        background-image: linear-gradient(
+          to right,
+          rgba(0, 0, 0, 0),
+          rgba(0, 0, 0, 0.75),
+          rgba(0, 0, 0, 0)
+        );
+      }
+    </style>
+  </head>
+  <body class="bg-light">
+    <div class="container bg-white py-3 shadow rounded wrapper">
+      <a href="{% url 'home' %}" class="btn btn-sm btn-secondary">Go Home</a>
+      <h1 id="title" class="text-center">
+        Elliptic Curve Calculator over Finite Field
+      </h1>
+      
+      <div class="row mt-5 mb-1 row-cols-auto">
+        <div class="col">
+            <h3>Your Input:</h3>
+        </div>
+        <div class="col">
+            <h3>{{a_label}} = {{a}}</h3>
+        </div>
+        <div class="col">
+            <h3>{{d_label}} = {{d}}</h3>
+        </div>
+        <div class="col">
+            <h3>{{p_label}} = {{p}}</h3>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center flex-wrap mb-1">
+        <h5 class="d-inline">Displaying Points with X coordinates in range : {{start}} to {{end}}</h5>
+        {% if start > 0 or end < p_minus_1 %}
+        <div class="d-flex align-items-center ">
+          <h5 class="d-inline">Choose starting X : </h5>
+          {% if start > 0 %}
+          &nbsp;
+          <a href="/calculate/{{prev}}" class="btn btn-warning"><i class="bi bi-arrow-left-circle-fill"></i> {{prev}}</a>
+          {% endif %}
+          {% if end < p_minus_1 %}
+          &nbsp;
+          <a href="/calculate/{{next}}" class="btn btn-warning">{{next}} <i class="bi bi-arrow-right-circle-fill"></i></a>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Graph -->
+      <div id="scatter-plot" class="border border-5 rounded-3 mb-3 w-100">
+        <div id="myPlot"></div>
+        <script>
+          var xArray = {{xarray}};
+          var yArray = {{yarray}};
+          var graphDiv = document.getElementById('myPlot');
+          var prevPointClicked = "";
+          // Define Data
+          var data = [
+            {
+              x: xArray,
+              y: yArray,
+              mode: "markers",
+              // marker: { size: 12 }
+            },
+          ];
+
+          // Define Layout
+          var layout = {
+            xaxis: { title: "X-axis" },
+            yaxis: { title: "Y-axis" },
+            {% if curve == '1' %}
+            title: "Twisted Edwards Curve mod({{p}})",
+            {% elif curve == '2' %}
+            title: "Short Weirstrass Curve mod({{p}})",
+            {% elif curve == '3' %}
+            title: "Montgomery Curve mod({{p}})",
+            {% endif %}
+          };
+
+          // Display using Plotly
+          Plotly.newPlot("myPlot", data, layout);
+
+          //plots a new point in trace 1
+          var plot = (new_x, new_y)=>{            
+            if(prevPointClicked != ""){
+              document.getElementById(prevPointClicked).style.backgroundColor = "lightgrey";
+            }
+            document.getElementById(new_x+","+new_y).style.backgroundColor = "orange";
+            prevPointClicked = new_x+","+new_y;
+
+            var x = [new_x];
+            var y = [new_y];
+
+            // Define Data
+            var new_data = [
+              {
+                x: x,
+                y: y,
+                mode: "markers",
+                marker: { size: 12 }
+              },
+            ];
+            
+            //delete trace 1 if available, otherwise throws error so catch it and skip
+            try{
+              Plotly.deleteTraces(graphDiv, 1); 
+            }catch(err){}
+            
+            //if new_x is not empty, plot it
+            if(new_x){
+              Plotly.plot("myPlot", new_data, layout);  //plot in trace 1
+              document.getElementsByClassName("legend")[0].style.display = "none";
+            }
+          }
+          </script>
+      </div>
+
+      <!-- Points -->
+      <div class = "d-flex justify-content-between flex-wrap">
+        <div>
+          <h3 class="mb-0">List of Points</h3>
+          <span>(click on point to plot in graph)</span>
+        </div>
+        <div>
+          <h3>Number of Points in x={{start}} to x={{end}} : <span  id="point_count">{{point_count}}</span></h3>
+        </div>
+      </div>
+      <div class="points-div mb-3">
+        <div class="row" id="points">
+          <!-- {% for i,j in Array %}
+          <div id="{{i}},{{j}}" onclick="plot({{i}},{{j}})" class="col col-6 text-center p-1 border border-2"><h5>({{i}},{{j}})</h5></div>
+          {% endfor %} -->
+        </div>
+      </div>
+      <form class="my-3 row" method="post">
+        {% csrf_token %}
+        <!-- <div>
+          <div class="input-group mb-3" style="max-width: 425px;">
+            {{ opt_form.opt.errors }}
+            <label class="input-group-text" for="id_opt">Select Operation: </label>
+            {{ opt_form.opt }}
+          </div>
+        </div> -->
+        <div class="col-12 col-sm-8 col-md-6 col-xl-4">
+          <div class="input-group mb-3">
+            <label class="input-group-text" for="id_opt">Select Operation: </label>
+            {{ opt_form.opt }}
+          </div>
+        </div>
+        
+        <div class = "col-12"></div>
+        
+        <div class="col-12 col-sm-4 col-md-3 col-xl-2">
+          <div class="input-group mb-3">
+            <label class="input-group-text" for="id_x1">x1: </label>
+            {{ opt_form.x1 }}
+          </div>
+        </div>
+        
+        <div class="col-12 col-sm-4 col-md-3 col-xl-2">
+          <div class="input-group mb-3">
+            <label class="input-group-text" for="id_y1">y1: </label>
+            {{ opt_form.y1 }}
+          </div>
+        </div>
+        
+        <div class="col-12"></div>
+        
+        
+        <div class="col-6 col-sm-4 col-md-3 col-xl-2 p-0"></div>
+
+        <div class="col p-0">
+            <p id="operator" class="my-3 fs-4 fw-bold">+</p>
+          </div>
+          
+          <div class="col-12"></div>
+
+        <div class="col-12 col-sm-4 col-md-3 col-xl-2">
+          <div id="div_x2" class="input-group mb-3">
+            <label id="label_x2" class="input-group-text" for="id_x2">x2: </label>
+            {{ opt_form.x2 }}
+          </div>
+        </div>
+        
+        <div class="col-12 col-sm-4 col-md-3 col-xl-2">
+          <div id="div_y2" class="input-group mb-3">
+            <label id="label_y2" class="input-group-text" for="id_y2">y2: </label>
+            {{ opt_form.y2 }}
+          </div>
+        </div>
+
+        <!-- errorrs -->
+        <h5 class="text-danger">{{ opt_form.opt.errors }}</h5>
+        <h5 class="text-danger">{{ opt_form.x1.errors }}</h5>
+        <h5 class="text-danger">{{ opt_form.y1.errors }}</h5>
+        <h5 class="text-danger">{{ opt_form.x2.errors }}</h5>
+        <h5 class="text-danger">{{ opt_form.y2.errors }}</h5>
+        
+        <div class="col-12">
+          <button id="cal_btn" class="btn btn-secondary" type="submit">Calculate</button>
+        </div>  
+
+        <div class="col-12"></div>
+
+        
+        <div class="col-6 col-sm-4 col-md-3 col-xl-2 p-0"></div>
+        <div id="result_equal" class="col p-0">
+          {% if result %}
+          <p class="my-3 fs-4 fw-bold">=</p>
+          <!-- <p id="res_p" class="text-center my-3 fs-4 fw-bold">({{x_res}},{{y_res}})</p> -->
+        </div>
+        
+        <div class="col-12"></div>
+        
+        <div id="result_val" class="col-12 col-sm-8 col-md-6 col-xl-4">
+          {% if y_res == -1 %}
+          <input id="res_p" class="text-center my-3 fs-4 fw-bold" value="Inverse doesn't exist!" disabled></input>
+          {% elif k != 0 %}
+          <input id="res_p" class="text-center my-3 fs-4 fw-bold" value="{{k}}" disabled></input>
+          {% else %}
+          <input id="res_p" class="text-center my-3 fs-4 fw-bold" value="({{x_res}},{{y_res}})" disabled></input>
+          {%endif%}
+          {% else %}
+          <!-- <p id="res_p" class="text-center my-3 fs-4 fw-bold"></p> -->
+          {% endif %}
+        </div>
+
+      </form>
+
+      <div class="push"></div>  
+    </div>
+
+    {% include "base/footer.html" %}
+    
+  </body>
+
+    <!-- Graph script -->
+    <script type="text/javascript">
+      (function () {
+        window["__CF$cv$params"] = {
+          r: "6d6367333c7d93c5",
+          m: "IijDuOepqNo8qXao1_9KRISPhdVUcEXFgcZLl_j3zWg-1643636964-0-AXMUVHzU9wrI3RwBD8zxqD41z1rQ7jFzO1p+NC7BBFjc7Hf+LL0RybgktYLtxejFJBOmPPTyQXrQQ4KzYgXb2ZXk8W0WrBqLVCNS8iyMh31qFZ2ohpxpwl82lxa/430faMKVZfM4hRWxQPsmNPBbUY0oi6gy3W6NlBA81VsQ2s93oJzmrFycNrGnJ2cJHPp23w==",
+          s: [0xa2bb9534f6, 0xf9b21dd29f],
+        };
+      })();
+    </script>
+  
+  <script>
+    input = document.getElementsByTagName("input");
+    for (let i = 0; i < input.length; i++) {
+      input[i].addEventListener("change", ()=>{ 
+        // document.getElementById("res_p").innerText="";
+        //result: d-none result
+        document.getElementById("result_equal").style.display = "none";
+        document.getElementById("result_val").style.display = "none";
+      });
+      input[i].classList.add("form-control");
+    }
+    input = document.getElementsByTagName("select");
+    for (let i = 0; i < input.length; i++) {
+      input[i].classList.add("form-select");
+    }
+
+    opt = document.getElementById("id_opt");
+    x2_label = document.getElementById("label_x2");
+    x2_div = document.getElementById("div_x2");
+    y2_div = document.getElementById("div_y2");
+    operator = document.getElementById("operator");
+
+    opt.addEventListener("change", () => {
+      try{
+        document.getElementById("result_equal").style.display = "none";
+        document.getElementById("result_val").style.display = "none";
+      }catch(err){
+
+      }
+      changed()})
+    opt.addEventListener("load", changed()) 
+    function changed()
+    { 
+      if (opt.value == '2')
+      {
+        x2_label.innerText="x2: ";
+        x2_div.style.display="flex";
+        y2_div.style.display="flex";
+        operator.innerText = "+";
+      }
+      else if ( opt.value == '3')
+      {
+        x2_label.innerText="x2: ";
+        x2_div.style.display="flex";
+        y2_div.style.display="flex";
+        operator.innerText = "-";
+      }
+      else if (opt.value == '4')
+      {
+        x2_label.innerText="x2: ";
+        x2_div.style.display="none";
+        y2_div.style.display="none";
+        operator.innerText = "x2";
+      }
+      else if (opt.value == '5')
+      {
+        x2_label.innerText="Scalar: ";
+        x2_div.style.display="flex";
+        y2_div.style.display="none";
+        operator.innerText = "x";
+      }
+      else if (opt.value == '6')
+      {
+        x2_label.innerText="x2: ";
+        x2_div.style.display="flex";
+        y2_div.style.display="flex";
+        operator.innerText = "/";
+      }
+    };
+
+  </script>
+  <!-- Focus Result area on load -->
+    {% if result %}
+    <script>
+      document.getElementById("cal_btn").focus();
+    </script>
+    {% endif %}
+
+  <script type="text/javascript">    
+    var xarray = {{xarray}}
+    var yarray = {{yarray}}
+    
+    var rowParentElement = document.getElementById("points")    
+
+    var i = 0;
+    var n = '{{point_count|safe}}'
+    //console.log("len", n)
+    //<div id="{{i}},{{j}}" onclick="plot({{i}},{{j}})" class="col col-6 text-center p-1 border border-2"><h5>({{i}},{{j}})<h5></div>
+
+    while(i < n-1) {
+      if(xarray[i] == xarray[i+1]) {        
+        var x1 = xarray[i];
+        var x2 = xarray[i+1];
+        var y1 = yarray[i];
+        var y2 = yarray[i+1];
+
+        var div1 = document.createElement("div")
+        div1.innerHTML = `<h5 id = ${x1},${y1} >(${x1}, ${y1})</h5>`
+        div1.id = x1+","+y1
+        div1.className = "col col-6 text-center p-1 border border-2"
+        //div1.onclick = "plot("+x1+","+y1+")"      
+        
+        var div2 = document.createElement("div")
+        div2.innerHTML = `<h5 id = ${x2},${y2} >(${x2}, ${y2})</h5>`
+        div2.id = x2+","+y2
+        div2.className = "col col-6 text-center p-1 border border-2"
+        
+        rowParentElement.appendChild(div1)
+        rowParentElement.appendChild(div2)
+
+        i += 2
+      } else {
+        var x = xarray[i];        
+        var y = yarray[i];        
+
+        var div = document.createElement("div")
+        div.innerHTML = `<h5 id = ${x},${y} >(${x}, ${y})</h5>`
+        div.id = x+","+y
+        div.className = "col col-12 text-center p-1 border border-2"        
+        rowParentElement.appendChild(div)
+
+        i++
+      }
+    }
+
+    if(i < n) {
+      var x = xarray[i];        
+        var y = yarray[i];        
+
+        var div = document.createElement("div")
+        div.innerHTML = `<h5 id = ${x},${y} >(${x}, ${y})</h5>`
+        div.id = x+","+y
+        div.className = "col col-12 text-center p-1 border border-2"        
+        rowParentElement.appendChild(div)
+    }
+
+    rowParentElement.addEventListener('click', (event) => {
+      var list = event.target.id.split(",").map(Number)
+      plot(list[0], list[1])
+    })
+  </script>
+</html>
